@@ -45,7 +45,7 @@
 ### 1. 克隆项目并安装依赖
 
 ```bash
-git clone https://github.com/your-username/paper-agent.git
+git clone https://github.com/TreamTik/paper-agent.git
 cd paper-agent
 pip install -r requirements.txt
 ```

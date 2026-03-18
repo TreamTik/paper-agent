@@ -1,0 +1,7 @@
+# 统一换行符：仓库存 LF，Windows checkout 时自动转 CRLF
+* text=auto
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+*.env* text eol=lf

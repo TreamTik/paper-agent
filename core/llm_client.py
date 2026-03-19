@@ -120,8 +120,8 @@ def call_once(messages: list[dict], max_tokens: int = 2000) -> str:
 # ── 非流式调用（Map 单块）────────────────────────────────────────────────────
 def _map_one(args: tuple) -> tuple[int, str]:
     """供 ThreadPoolExecutor 调用：返回 (chunk_index, summary)。"""
-    idx, chunk_text_str, total = args
-    messages = build_map_prompt(chunk_text_str, idx + 1, total)
+    idx, chunk_text_str, total, language = args
+    messages = build_map_prompt(chunk_text_str, idx + 1, total, language)
     client = _get_client()
     resp = client.chat.completions.create(
         model=_model(),
@@ -155,7 +155,8 @@ def analyze_paper(state: dict, full_text: str, progress_callback=None):
         if progress_callback:
             progress_callback("正在分析…", 1, 1)
         sm.update_state(state, status="streaming")
-        messages = build_single_prompt(full_text)
+        language = state.get("result_language", "zh-CN")
+        messages = build_single_prompt(full_text, language)
         yield from _stream_and_write(state, messages, note_p)
         return
 
@@ -167,8 +168,9 @@ def analyze_paper(state: dict, full_text: str, progress_callback=None):
     if remaining > 0:
         sm.update_state(state, status="map_in_progress")
         completed_count = already_done
+        language = state.get("result_language", "zh-CN")
 
-        tasks = [(i, chunks[i], total) for i in range(already_done, total)]
+        tasks = [(i, chunks[i], total, language) for i in range(already_done, total)]
 
         # 用 dict 收集乱序结果，保证最终顺序正确
         results: dict[int, str] = {}
@@ -203,7 +205,7 @@ def analyze_paper(state: dict, full_text: str, progress_callback=None):
     if progress_callback:
         progress_callback("正在生成最终报告…", total, total + 1)
     sm.update_state(state, status="streaming")
-    messages = build_reduce_prompt(summaries)
+    messages = build_reduce_prompt(summaries, state.get("result_language", "zh-CN"))
     yield from _stream_and_write(state, messages, note_p)
 
 

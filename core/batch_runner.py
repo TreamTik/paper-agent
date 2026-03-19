@@ -61,6 +61,9 @@ def _run(file_info: dict):
                 len(chunk_text(full_text)),
                 sha256=file_info["sha256"],
             )
+            # 保存语言设置
+            if file_info.get("result_language"):
+                sm.update_state(state, result_language=file_info["result_language"])
 
         # 消费生成器，analyze_paper 内部负责写文件 + 更新状态
         for _ in analyze_paper(state, full_text):

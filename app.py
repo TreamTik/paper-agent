@@ -1758,12 +1758,30 @@ else:
                 if parallel_mode:
                     st.warning("⚠️ 并行模式会同时调用多个 API，请确保你的 API 配额充足")
 
+                radio_result_language = st.radio(
+                    "分析报告语言",
+                    [":rainbow[中文]", "***English***🌏"],
+                    captions=[
+                        "输出中文分析报告，最小化理解难度.",
+                        "Write analysis report in English, preserve the best of the paper."
+                    ]
+                )
+                if radio_result_language == ":rainbow[中文]":
+                    result_language = "zh-CN"
+                else:
+                    result_language = "en-US"
+
                 col_run, col_back = st.columns([1, 3])
                 with col_run:
                     if st.button("🚀 开始批量分析", type="primary"):
+                        # 将语言设置传递给每个文件
+                        result_language = "zh-CN" if radio_result_language == ":rainbow[中文]" else "en-US"
+                        for f in file_info:
+                            f["result_language"] = result_language
                         st.session_state["batch_files"] = file_info
                         st.session_state["batch_index"] = 0
                         st.session_state["batch_parallel"] = parallel_mode
+                        st.session_state["result_language"] = result_language
                         st.rerun()
                 with col_back:
                     if st.button("← 返回"):
@@ -1898,6 +1916,9 @@ else:
             state = sm.create_state(trigger_stem, filename,
                                     len(chunk_text(trigger_text)),
                                     sha256=st.session_state.get("trigger_sha256",""))
+            # 保存语言设置（顺序模式）
+            result_lang = st.session_state.get("result_language", "zh-CN")
+            sm.update_state(state, result_language=result_lang)
 
         if state.get("status") == "completed":
             st.session_state["selected_stem"] = trigger_stem

@@ -30,3 +30,5 @@ Thumbs.db
 .idea/
 .vscode/
 .claude/
+CLAUDE.md
+*.tmp.*

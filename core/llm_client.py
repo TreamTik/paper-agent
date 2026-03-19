@@ -23,11 +23,49 @@ load_dotenv()
 
 DIRECT_THRESHOLD = 24_000
 MAP_WORKERS      = 4
-MAX_OUTPUT_TOKENS = 16_000   # 最终报告允许的最大 token 数
-MAP_OUTPUT_TOKENS = 1_500    # 单块摘要上限
 # 超时设置：connect=15s，读取相邻两个 chunk 最长等待 300s
 _TIMEOUT = httpx.Timeout(connect=15.0, read=300.0, write=15.0, pool=15.0)
 
+def _get_provider_limits() -> dict:
+    """
+    Detect provider from OPENAI_API_BASE and return appropriate token limits.
+    Returns dict with max_output_tokens and map_output_tokens.
+    """
+    base_url = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1").lower()
+
+    # Provider-specific output limits
+    # DeepSeek: 8K output limit for official API
+    if any(host in base_url for host in ["api.deepseek.com", "deepseek"]):
+        return {"max_output_tokens": 8192, "map_output_tokens": 1500}
+
+    # Anthropic/Claude via various endpoints
+    if any(host in base_url for host in ["api.anthropic.com", "claude", "anthropic"]):
+        return {"max_output_tokens": 16000, "map_output_tokens": 1500}
+
+    # OpenAI
+    if any(host in base_url for host in ["api.openai.com", "openai.azure.com"]):
+        return {"max_output_tokens": 16000, "map_output_tokens": 1500}
+
+    # SiliconFlow (supports various models with different limits)
+    if "siliconflow.cn" in base_url:
+        return {"max_output_tokens": 16000, "map_output_tokens": 1500}
+
+    # Zhipu/GLM
+    if any(host in base_url for host in ["zhipu", "bigmodel.cn"]):
+        return {"max_output_tokens": 16000, "map_output_tokens": 1500}
+
+    # Default fallback (OpenAI-compatible)
+    return {"max_output_tokens": 16000, "map_output_tokens": 1500}
+
+
+def get_max_output_tokens() -> int:
+    """Get max output tokens for the current provider."""
+    return _get_provider_limits()["max_output_tokens"]
+
+
+def get_map_output_tokens() -> int:
+    """Get map phase output tokens for the current provider."""
+    return _get_provider_limits()["map_output_tokens"]
 
 def _get_client() -> OpenAI:
     return OpenAI(
@@ -53,7 +91,7 @@ def stream_analysis(messages: list[dict]):
         messages=messages,
         stream=True,
         temperature=0.3,
-        max_tokens=MAX_OUTPUT_TOKENS,
+        max_tokens=get_max_output_tokens(),
     ) as stream:
         for chunk in stream:
             if not chunk.choices:
@@ -90,7 +128,7 @@ def _map_one(args: tuple) -> tuple[int, str]:
         messages=messages,
         stream=False,
         temperature=0.3,
-        max_tokens=MAP_OUTPUT_TOKENS,
+        max_tokens=get_map_output_tokens(),
     )
     if not resp.choices:
         return idx, ""

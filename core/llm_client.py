@@ -9,6 +9,7 @@ import os
 import datetime
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Optional
 
 import httpx
 from openai import OpenAI
@@ -136,10 +137,11 @@ def _map_one(args: tuple) -> tuple[int, str]:
 
 
 # ── 对外主入口 ────────────────────────────────────────────────────────────────
-def analyze_paper(state: dict, full_text: str, progress_callback=None):
+def analyze_paper(state: dict, full_text: str, pdf_bytes: Optional[bytes] = None, progress_callback=None):
     """
     yield 最终报告文本增量，同时逐 delta 写入 note 文件（incremental flush）。
     支持热启动：Map 已完成的块跳过，partial_result 恢复后继续。
+    新增：支持 VLM 图表分析（当提供 pdf_bytes 且启用 VLM 时）
     """
     chunks = chunk_text(full_text)
     total  = len(chunks)
@@ -150,13 +152,32 @@ def analyze_paper(state: dict, full_text: str, progress_callback=None):
         note_p = _note_path(state["stem"])
     sm.update_state(state, note_path=str(note_p))
 
+    # ── VLM 图表分析（可选）───────────────────────────────────────────────────
+    figure_analysis_text = ""
+    language = state.get("result_language", "zh-CN")
+    if pdf_bytes and os.getenv("ENABLE_VLM_ANALYSIS", "false").lower() == "true":
+        try:
+            if progress_callback:
+                progress_callback("正在分析图表..." if language == "zh-CN" else "Analyzing figures...", 0, total + 2)
+
+            figure_analysis_text = _analyze_figures_with_vlm(pdf_bytes, progress_callback, language)
+
+            if progress_callback and figure_analysis_text:
+                progress_callback("图表分析完成" if language == "zh-CN" else "Figure analysis completed", 1, total + 2)
+        except Exception as e:
+            print(f"VLM 图表分析失败: {e}")
+            figure_analysis_text = ""
+
     # ── 直接分析（短文本）────────────────────────────────────────────────────
     if len(full_text) <= DIRECT_THRESHOLD or total == 1:
         if progress_callback:
             progress_callback("正在分析…", 1, 1)
         sm.update_state(state, status="streaming")
         language = state.get("result_language", "zh-CN")
-        messages = build_single_prompt(full_text, language)
+
+        # 传递图表分析到 prompt builder
+        messages = build_single_prompt(full_text, language, figure_analysis_text)
+
         yield from _stream_and_write(state, messages, note_p)
         return
 
@@ -205,8 +226,65 @@ def analyze_paper(state: dict, full_text: str, progress_callback=None):
     if progress_callback:
         progress_callback("正在生成最终报告…", total, total + 1)
     sm.update_state(state, status="streaming")
-    messages = build_reduce_prompt(summaries, state.get("result_language", "zh-CN"))
+
+    language = state.get("result_language", "zh-CN")
+
+    # 传递图表分析到 prompt builder，让它作为单独栏目
+    messages = build_reduce_prompt(summaries, language, figure_analysis_text)
     yield from _stream_and_write(state, messages, note_p)
+
+
+def _analyze_figures_with_vlm(pdf_bytes: bytes, progress_callback=None, language: str = "zh-CN") -> str:
+    """
+    使用 VLM 分析 PDF 中的图表
+    返回格式化后的图表分析文本
+    """
+    from core.pdf_parser import extract_figures_from_pdf
+    from core.vlm_client import analyze_figures_batch
+    from core.prompt_builder import _read as read_file
+    from core.state_manager import CONFIG_DIR
+
+    # 提取图片
+    figures = extract_figures_from_pdf(pdf_bytes)
+    if not figures:
+        return ""
+
+    # 读取研究目标
+    research_goal_path = CONFIG_DIR / "02_research_goal.md"
+    research_goal = read_file(research_goal_path) if research_goal_path.exists() else ""
+
+    # 最大分析数量
+    max_figures = int(os.getenv("MAX_FIGURES_PER_PAPER", "5"))
+
+    # 批量分析，传递语言参数
+    analyses = analyze_figures_batch(figures, research_goal, max_figures, language)
+
+    if not analyses:
+        return ""
+
+    # 格式化输出（根据语言）
+    if language == "zh-CN":
+        sections = ["### 关键图表分析\n"]
+        for i, ana in enumerate(analyses, 1):
+            section = f"""**图表 {i}** ({ana.figure_type})
+
+{ana.summary}
+
+---
+"""
+            sections.append(section)
+    else:
+        sections = ["### Key Figure Analysis\n"]
+        for i, ana in enumerate(analyses, 1):
+            section = f"""**Figure {i}** ({ana.figure_type})
+
+{ana.summary}
+
+---
+"""
+            sections.append(section)
+
+    return "\n".join(sections)
 
 
 # ── 流式写文件辅助 ────────────────────────────────────────────────────────────

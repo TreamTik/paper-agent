@@ -66,7 +66,8 @@ def _run(file_info: dict):
                 sm.update_state(state, result_language=file_info["result_language"])
 
         # 消费生成器，analyze_paper 内部负责写文件 + 更新状态
-        for _ in analyze_paper(state, full_text):
+        pdf_bytes = file_info.get("bytes")
+        for _ in analyze_paper(state, full_text, pdf_bytes):
             pass
 
     except Exception as e:

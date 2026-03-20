@@ -26,15 +26,42 @@ def _single_chunk_system(language: str = "zh-CN") -> str:
         "不要输出任何寒暄或额外的解释，直接输出 Markdown 格式的分析报告。"
     )
 
-def build_single_prompt(paper_text: str, language: str = "zh-CN") -> list[dict]:
+def build_single_prompt(paper_text: str, language: str = "zh-CN", figure_analysis: str = "") -> list[dict]:
     """PDF 文本较短时，直接用完整文本一次分析。"""
     research_goal = _read(RESEARCH_GOAL_FILE)
     output_template = _read(OUTPUT_TEMPLATE_FILE)
+
+    # 如果有图表分析，添加说明
+    figure_section = ""
+    if figure_analysis:
+        if language == "zh-CN":
+            figure_section = f"""
+
+## 关键图表分析（重要！必须包含在报告中）
+以下是对论文中关键图表的详细分析结果。**请注意**：
+1. 请在报告中单独列出"关键图表分析"栏目
+2. **不要直接复制**以下内容，请用自己的语言**重新组织、润色表达**
+3. 确保语言流畅、专业，与报告整体风格保持一致
+4. 将各图表的分析整合成连贯的段落，可适当调整顺序和结构
+
+{figure_analysis}"""
+        else:
+            figure_section = f"""
+
+## Key Figure Analysis (Important! Must include in report)
+Below is detailed analysis of key figures from the paper. **Please note**:
+1. Include a separate "Key Figure Analysis" section in your report
+2. **Do not copy verbatim** - please **reorganize and polish** the content in your own words
+3. Ensure smooth, professional language consistent with the report style
+4. Integrate analyses into coherent paragraphs, adjusting order and structure as needed
+
+{figure_analysis}"""
+
     user_content = f"""## 研究目标
 {research_goal}
 
 ## 期望输出格式（请严格遵守）
-{output_template}
+{output_template}{figure_section}
 
 ## 论文全文
 {paper_text}"""
@@ -73,18 +100,45 @@ def build_map_prompt(chunk: str, chunk_idx: int, total: int, language: str = "zh
 
 
 # ── Reduce 阶段：基于所有 Chunk 摘要生成最终报告 ─────────────────────────────
-def build_reduce_prompt(chunk_summaries: list[str], language: str) -> list[dict]:
+def build_reduce_prompt(chunk_summaries: list[str], language: str, figure_analysis: str = "") -> list[dict]:
     """Reduce 阶段：汇总所有 Chunk 摘要，生成完整分析报告。"""
     research_goal = _read(RESEARCH_GOAL_FILE)
     output_template = _read(OUTPUT_TEMPLATE_FILE)
     combined = "\n\n---\n\n".join(
         f"### 片段 {i+1} 要点摘要\n{s}" for i, s in enumerate(chunk_summaries)
     )
+
+    # 如果有图表分析，添加说明
+    figure_section = ""
+    if figure_analysis:
+        if language == "zh-CN":
+            figure_section = f"""
+
+## 关键图表分析（重要！必须包含在报告中）
+以下是对论文中关键图表的详细分析结果。**请注意**：
+1. 请在最终报告中单独列出"关键图表分析"栏目
+2. **不要直接复制**以下内容，请用自己的语言**重新组织、润色表达**
+3. 确保语言流畅、专业，与报告整体风格保持一致
+4. 将各图表的分析整合成连贯的段落，可适当调整顺序和结构
+
+{figure_analysis}"""
+        else:
+            figure_section = f"""
+
+## Key Figure Analysis (Important! Must include in report)
+Below is detailed analysis of key figures from the paper. **Please note**:
+1. Include a separate "Key Figure Analysis" section
+2. **Do not copy verbatim** - please **reorganize and polish** the content in your own words
+3. Ensure smooth, professional language consistent with the report style
+4. Integrate analyses into coherent paragraphs, adjusting order and structure as needed
+
+{figure_analysis}"""
+
     user_content = f"""## 研究目标
 {research_goal}
 
 ## 期望输出格式（请严格遵守）
-{output_template}
+{output_template}{figure_section}
 
 ## 各章节要点摘要（来自对长文的逐块提取）
 {combined}

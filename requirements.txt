@@ -2,3 +2,7 @@ streamlit>=1.35.0
 PyMuPDF>=1.24.0
 python-dotenv>=1.0.0
 openai>=1.30.0
+Pillow>=10.0.0  # 图片处理（VLM 图表分析）
+
+# 开发依赖
+pytest>=8.0.0  # 测试框架

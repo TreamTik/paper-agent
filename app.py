@@ -1889,6 +1889,7 @@ else:
                 st.session_state.update({
                     "trigger_stem":     current["stem"],
                     "trigger_text":     full_text,
+                    "trigger_pdf_bytes": current["bytes"],  # 用于 VLM 图表分析
                     "trigger_filename": current["name"],
                     "trigger_sha256":   current["sha256"],
                     "batch_analyzing":  True,
@@ -1935,7 +1936,8 @@ else:
                 progress_bar.progress(pct, text=step)
 
             try:
-                for delta in analyze_paper(state, trigger_text, on_progress):
+                trigger_pdf_bytes = st.session_state.get("trigger_pdf_bytes")
+                for delta in analyze_paper(state, trigger_text, trigger_pdf_bytes, on_progress):
                     accumulated.append(delta)
                     report_area.markdown("".join(accumulated))
 

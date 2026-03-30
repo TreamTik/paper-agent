@@ -101,6 +101,61 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# 导入 components 用于回到顶部按钮
+import streamlit.components.v1 as components
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 回到顶部浮动按钮（所有页面显示）
+# ═══════════════════════════════════════════════════════════════════════════════
+st.markdown("""
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+#back-to-top {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #4A90D9;
+    color: white;
+    border: none;
+    box-shadow: 0 2px 12px rgba(74, 144, 217, 0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    opacity: 0.9;
+    transition: all 0.3s ease;
+    z-index: 9999;
+}
+#back-to-top:hover {
+    opacity: 1;
+    transform: translateY(-3px);
+    box-shadow: 0 4px 16px rgba(74, 144, 217, 0.5);
+}
+</style>
+<button id="back-to-top" title="回到顶部"><i class="fas fa-arrow-up"></i></button>
+""", unsafe_allow_html=True)
+
+# 使用 components 执行 JavaScript（设置小高度确保渲染）
+components.html("""
+<script>
+(function() {
+    const btn = parent.document.getElementById('back-to-top');
+    if (btn) {
+        btn.addEventListener('click', function() {
+            const main = parent.document.querySelector('.stMain');
+            if (main) {
+                main.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+    }
+})();
+</script>
+""", height=1)
+
 
 # ── 工具函数 ──────────────────────────────────────────────────────────────────
 def format_size(n: int) -> str:
@@ -652,6 +707,28 @@ with st.sidebar:
             st.session_state.pop("selected_stem", None)
             st.session_state.pop("trigger_stem", None)
             st.rerun()
+
+        # ═══════════════════════════════════════════════════════════════════
+        # 回到首页按钮（仅非上传页面显示）
+        # ═══════════════════════════════════════════════════════════════════
+        is_home_page = not any([
+            st.session_state.get("selected_stem"),
+            st.session_state.get("idea_mode"),
+            st.session_state.get("roadmap_mode"),
+            st.session_state.get("contradiction_mode"),
+            st.session_state.get("scout_mode"),
+            st.session_state.get("chat_mode"),
+            st.session_state.get("settings_mode"),
+        ])
+        if not is_home_page:
+            st.divider()
+            if st.button("🏠 回到首页", use_container_width=True, type="secondary"):
+                # 清除所有模式标志，回到上传页面
+                for key in ["selected_stem", "idea_mode", "roadmap_mode",
+                            "contradiction_mode", "scout_mode", "chat_mode",
+                            "settings_mode", "active_chat_stem", "trigger_stem"]:
+                    st.session_state.pop(key, None)
+                st.rerun()
 
 
 # ── 主区域 ────────────────────────────────────────────────────────────────────

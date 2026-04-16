@@ -1,0 +1,9 @@
+.git
+.claude
+.env
+data/*
+!data/config/
+!data/config/**
+__pycache__/
+*.pyc
+.pytest_cache/

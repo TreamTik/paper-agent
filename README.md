@@ -75,6 +75,31 @@ streamlit run app.py
 
 浏览器访问 `http://localhost:8501`。
 
+### 3.1 使用 Docker Compose 启动
+
+```bash
+cp .env.example .env
+# 编辑 .env，填入 API 配置
+
+docker compose up --build -d
+```
+
+浏览器访问 `http://localhost:8501`。
+
+说明：
+- Compose 会从当前 shell 环境或项目根目录 `.env` 读取配置；推荐先执行 `cp .env.example .env`
+- 应用数据会持久化到宿主机 `./data/`
+- 查看日志：`docker compose logs -f`
+- 停止服务：`docker compose down`
+- 依赖变更后可重新执行 `docker compose up --build`
+
+如果仓库里还没有 `.env`，`docker compose` 会先报错，这是预期行为；先复制 `.env.example` 即可。
+
+当前仓库已包含以下容器文件：
+- `Dockerfile`
+- `docker-compose.yml`
+- `.dockerignore`
+
 ### 4. 填写你的研究目标
 
 点击侧边栏 **⚙️ 设置**，填写以下配置：
@@ -136,6 +161,9 @@ paper-agent/
 │   ├── backfill_sha256.py      # 为已有 PDF 补填 SHA256
 │   └── migrate_data.py         # 将旧版 data_my/ 迁移为新目录结构 data_new/
 ├── requirements.txt
+├── Dockerfile                  # Docker 镜像构建文件
+├── docker-compose.yml          # Docker Compose 启动配置
+├── .dockerignore               # Docker 构建上下文忽略规则
 ├── .env.example                # 环境变量示例
 ├── .gitignore
 └── .env                        # API 凭证（不提交到 git）

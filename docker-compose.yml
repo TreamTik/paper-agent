@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      MODEL_NAME: ${MODEL_NAME:-}
+      ENABLE_VLM_ANALYSIS: ${ENABLE_VLM_ANALYSIS:-false}
+      VLM_CLASSIFY_MODEL: ${VLM_CLASSIFY_MODEL:-qwen3.5-flash}
+      VLM_MODEL: ${VLM_MODEL:-qwen3.5-plus}
+      VLM_API_BASE: ${VLM_API_BASE:-}
+      VLM_API_KEY: ${VLM_API_KEY:-}
+      MAX_FIGURES_PER_PAPER: ${MAX_FIGURES_PER_PAPER:-5}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
